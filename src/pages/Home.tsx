@@ -12,7 +12,7 @@ interface EmailRecord {
   subject: string;
   status: string;
   created_at: string;
-  opened_at: string | null;
+  opened_at?: string;
 }
 
 export const Home = () => {
