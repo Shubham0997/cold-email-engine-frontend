@@ -2,8 +2,11 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export interface EmailRecipient {
+  id: string;
   recipient_email: string;
+  subject: string;
   status: 'SENT' | 'OPENED' | 'FAILED' | 'PENDING';
+  created_at: string;
   opened_at?: string;
 }
 
