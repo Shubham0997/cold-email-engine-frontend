@@ -58,8 +58,8 @@ export const CreateCampaign = () => {
     setIsResearching(true);
     setResearchStatus('templates');
     try {
-      // 1. Research Subject and Body
-      const res = await api.research(prompt);
+      // 1. Research Subject and Body (is_campaign = true)
+      const res = await api.research(prompt, true);
       setSubject(res.subject);
       setBody(res.body);
 

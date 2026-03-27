@@ -90,11 +90,11 @@ export const api = {
     return response.json();
   },
 
-  research: async (prompt: string): Promise<{subject: string, body: string}> => {
+  research: async (prompt: string, is_campaign: boolean = false): Promise<{subject: string, body: string}> => {
     const response = await fetch(`${API_BASE}/api/ai/research`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, is_campaign })
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
