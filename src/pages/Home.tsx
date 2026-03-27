@@ -15,6 +15,9 @@ export const Home = () => {
   const [isResearching, setIsResearching] = useState(false);
   const [sendResult, setSendResult] = useState<{success: boolean, text: string} | null>(null);
 
+  const hasPlaceholders = (text: string) => /{{.*?}}/.test(text);
+  const containsPlaceholders = hasPlaceholders(subject) || hasPlaceholders(message);
+
   const handleAIResearch = async () => {
     if (!prompt) return;
     setIsResearching(true);
@@ -32,6 +35,13 @@ export const Home = () => {
   const handleQuickSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipient || !message) return;
+    
+    if (containsPlaceholders) {
+      if (!window.confirm('We detected unreplaced placeholders like {{Name}} in your email. Are you sure you want to send it as is?')) {
+        return;
+      }
+    }
+
     setIsSending(true);
     setSendResult(null);
     try {
@@ -118,6 +128,27 @@ export const Home = () => {
             placeholder="Hi John, I'd like to reach out regarding..." 
             required 
           />
+
+          {containsPlaceholders && (
+            <div style={{ 
+              backgroundColor: '#fffbeb', 
+              border: '1px solid #fef3c7', 
+              padding: '0.75rem', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              display: 'flex',
+              gap: '0.5rem',
+              alignItems: 'center',
+              color: '#92400e',
+              fontSize: '0.85rem'
+            }}>
+              <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+              <div>
+                <strong>Placeholders detected!</strong> Please make sure to replace items like <code>{"{{Name}}"}</code> before sending.
+              </div>
+            </div>
+          )}
+
           <Button type="submit" isLoading={isSending} disabled={!recipient || !message}>
             {isSending ? 'Sending...' : 'Send with Tracking'}
           </Button>
