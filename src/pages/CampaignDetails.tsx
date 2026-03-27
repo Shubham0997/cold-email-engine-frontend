@@ -8,6 +8,7 @@ interface Recipient {
   id: string;
   email: string;
   status: string;
+  opened_at?: string;
 }
 
 interface CampaignDetailsData {
@@ -116,6 +117,7 @@ export const CampaignDetails = () => {
                 <tr style={{ borderBottom: '1px solid #eee' }}>
                   <th style={{ padding: '0.5rem 0' }}>Email</th>
                   <th style={{ padding: '0.5rem 0' }}>Status</th>
+                  <th style={{ padding: '0.5rem 0' }}>Opened At</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,6 +132,9 @@ export const CampaignDetails = () => {
                       }}>
                         {r.status}
                       </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 0', fontSize: '0.8rem', color: '#666' }}>
+                      {r.opened_at ? new Date(r.opened_at).toLocaleString() : '-'}
                     </td>
                   </tr>
                 ))}

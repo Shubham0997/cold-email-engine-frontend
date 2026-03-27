@@ -8,6 +8,8 @@ export interface EmailRecipient {
   status: 'SENT' | 'OPENED' | 'FAILED' | 'PENDING';
   created_at: string;
   opened_at?: string;
+  campaign_id?: string | null;
+  campaign_name?: string;
 }
 
 export interface EmailStats {
