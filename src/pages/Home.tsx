@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { Button } from '../components/Button';
@@ -6,12 +6,40 @@ import { Input } from '../components/Input';
 import { Textarea } from '../components/Textarea';
 import { Card } from '../components/Card';
 
+interface EmailRecord {
+  id: string;
+  recipient_email: string;
+  subject: string;
+  status: string;
+  created_at: string;
+  opened_at: string | null;
+}
+
 export const Home = () => {
   const [recipient, setRecipient] = useState('');
   const [subject, setSubject] = useState('Quick Message');
   const [message, setMessage] = useState('');
+  const [emails, setEmails] = useState<EmailRecord[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sendResult, setSendResult] = useState<{success: boolean, text: string} | null>(null);
+
+  const fetchEmails = useCallback(async () => {
+    try {
+      const stats = await api.getStats();
+      setEmails(stats.emails || []);
+    } catch (err) {
+      console.error('Failed to fetch emails', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEmails();
+    const interval = setInterval(fetchEmails, 10000); // Poll every 10s
+    return () => clearInterval(interval);
+  }, [fetchEmails]);
 
   const handleQuickSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +52,7 @@ export const Home = () => {
       setRecipient('');
       setSubject('Quick Message');
       setMessage('');
+      fetchEmails();
     } catch (err) {
       setSendResult({ success: false, text: 'Failed to send email.' });
     } finally {
@@ -86,6 +115,50 @@ export const Home = () => {
             </p>
           )}
         </form>
+      </Card>
+
+      <Card title="Recent Activity">
+        {loading && emails.length === 0 ? (
+          <p>Loading history...</p>
+        ) : emails.length === 0 ? (
+          <p style={{ color: '#666', fontStyle: 'italic' }}>No emails sent yet.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #eee' }}>
+                  <th style={{ padding: '0.75rem 0' }}>Recipient</th>
+                  <th style={{ padding: '0.75rem 0' }}>Subject</th>
+                  <th style={{ padding: '0.75rem 0' }}>Status</th>
+                  <th style={{ padding: '0.75rem 0' }}>Sent At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emails.slice(0, 10).map((email) => (
+                  <tr key={email.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                    <td style={{ padding: '0.75rem 0' }}>{email.recipient_email}</td>
+                    <td style={{ padding: '0.75rem 0' }}>{email.subject}</td>
+                    <td style={{ padding: '0.75rem 0' }}>
+                      <span style={{ 
+                        padding: '2px 8px', 
+                        borderRadius: '12px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 600,
+                        backgroundColor: email.status === 'OPENED' ? '#e6f4ea' : '#f1f3f4',
+                        color: email.status === 'OPENED' ? '#1e8e3e' : '#5f6368'
+                      }}>
+                        {email.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.75rem 0', color: '#666' }}>
+                      {new Date(email.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );
