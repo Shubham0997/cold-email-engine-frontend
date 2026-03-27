@@ -29,6 +29,7 @@ export const CampaignDetails = () => {
   const [data, setData] = useState<CampaignDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -46,15 +47,29 @@ export const CampaignDetails = () => {
   }, [id]);
 
   const handleReset = async () => {
-    if (!id || !window.confirm('This will reset all recipients to PENDING. Are you sure?')) return;
+    if (!id || !window.confirm('This will reset all recipients and RERUN the campaign. Are you sure?')) return;
     setIsResetting(true);
     try {
       await api.resetCampaign(id);
+      await api.startCampaign(id);
       window.location.reload();
     } catch (err) {
-      alert('Failed to reset campaign');
+      alert('Failed to reset and rerun campaign');
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleStart = async () => {
+    if (!id) return;
+    setIsStarting(true);
+    try {
+      await api.startCampaign(id);
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to start campaign');
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -78,6 +93,11 @@ export const CampaignDetails = () => {
           <p style={{ color: '#666' }}>Created on {new Date(data.campaign.created_at).toLocaleString()}</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+          {data.campaign.status === 'DRAFT' && (
+            <Button onClick={handleStart} variant="primary" isLoading={isStarting}>
+              Start Campaign
+            </Button>
+          )}
           <Button onClick={() => navigate(`/campaigns/edit/${id}`)} variant="secondary">
             Edit Campaign
           </Button>
