@@ -10,6 +10,20 @@ MailFlow AI is a React-based outreach platform designed for managing and trackin
 - **AI-Driven Research**: Integrated Gemini AI for generating personalized email templates and lead suggestions.
 - **API-Driven Architecture**: Clean separation between UI components and backend communication logic.
 
+## 🖼 Interface Showcase
+
+![Dashboard Statistics](./React%20Application%20and%20Flask-2026-03-27-171106.png)
+*Real-time outreach analytics and status monitoring.*
+
+![Campaign Management](./React%20Application%20and%20Flask-2026-03-27-171138.png)
+*Comprehensive overview of active and draft campaigns with status synchronization.*
+
+![AI Research Engine](./React%20Application%20and%20Flask-2026-03-27-171208.png)
+*AI-powered email generation and niche research powered by Gemini.*
+
+![Campaign Creation](./React%20Application%20and%20Flask-2026-03-27-171238.png)
+*Intuitive campaign builder for bulk outreach and lead suggestion.*
+
 ## 🏗 Architecture
 
 - **Component Layer**: Modular UI components (`src/components`) for buttons, cards, and inputs.
