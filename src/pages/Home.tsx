@@ -58,6 +58,15 @@ export const Home = () => {
             placeholder="john@example.com" 
             required 
           />
+          <Input 
+            id="quick-subject"
+            label="Email Subject" 
+            type="text" 
+            value={subject} 
+            onChange={(e) => setSubject(e.target.value)} 
+            placeholder="Quick Message" 
+            required 
+          />
           <Textarea 
             id="quick-message"
             label="Message Content" 

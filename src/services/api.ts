@@ -15,11 +15,11 @@ export interface EmailStats {
 }
 
 export const api = {
-  sendSingleEmail: async (recipient: string, message: string): Promise<{ email_id: string }> => {
+  sendSingleEmail: async (recipient: string, message: string, subject?: string): Promise<{ email_id: string }> => {
     const response = await fetch(`${API_BASE}/email/send-single`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: recipient, message })
+      body: JSON.stringify({ email: recipient, message, subject })
     });
     
     if (!response.ok) {
