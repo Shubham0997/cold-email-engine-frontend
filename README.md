@@ -10,19 +10,68 @@ MailFlow AI is a React-based outreach platform designed for managing and trackin
 - **AI-Driven Research**: Integrated Gemini AI for generating personalized email templates and lead suggestions.
 - **API-Driven Architecture**: Clean separation between UI components and backend communication logic.
 
-## 🖼 Interface Showcase
+## 📊 System Architecture
 
-![Dashboard Statistics](./React%20Application%20and%20Flask-2026-03-27-171106.png)
-*Real-time outreach analytics and status monitoring.*
+### High-Level Design
+```mermaid
+graph TD
+    subgraph Frontend [React Application]
+        UI[UI Components]
+        Pages[Page Views]
+        Services[API Services]
+        Context[Global State/UX]
+    end
 
-![Campaign Management](./React%20Application%20and%20Flask-2026-03-27-171138.png)
-*Comprehensive overview of active and draft campaigns with status synchronization.*
+    subgraph Backend [Flask REST API]
+        Routes[API Routes]
+        Rules[Business Logic / Services]
+        Repo[Data Repositories]
+    end
 
-![AI Research Engine](./React%20Application%20and%20Flask-2026-03-27-171208.png)
-*AI-powered email generation and niche research powered by Gemini.*
+    subgraph Persistence [Database Layer]
+        DB[(PostgreSQL / SQLite)]
+    end
 
-![Campaign Creation](./React%20Application%20and%20Flask-2026-03-27-171238.png)
-*Intuitive campaign builder for bulk outreach and lead suggestion.*
+    Pages --> UI
+    Pages --> Services
+    Services --> Routes
+    Routes --> Rules
+    Rules --> Repo
+    Repo --> DB
+```
+
+### End-to-End Workflow
+```mermaid
+flowchart TD
+    subgraph UI_UX [User Experience]
+        A[Define Outreach Goal] --> B[Generate AI Content]
+        B --> C[Import/Suggest Leads]
+        C --> D[Review & Start Campaign]
+    end
+
+    subgraph AI_CORE [Intelligence Engine]
+        B -- "Prompt" --> G1[Gemini 1.5 Pro]
+        G1 -- "JSON" --> B
+        C -- "Target" --> G2[Lead Scraper/Suggester]
+        G2 -- "Emails" --> C
+    end
+
+    subgraph DELIVERY [Execution Layer]
+        D --> E[Register Tracking IDs]
+        E --> F[Establish SMTP Tunnel]
+        F --> G[Iterate & Send Batch]
+    end
+
+    subgraph ANALYTICS [Observability]
+        G --> H[Monitor SMTP Status]
+        H -- "Open" --> I[Receive Pixel Hit]
+        I --> J[Filter Bots/Scans]
+        J --> K[Update Dashboard Stats]
+    end
+
+    UI_UX --> DELIVERY
+    DELIVERY --> ANALYTICS
+```
 
 ## 🏗 Architecture
 
