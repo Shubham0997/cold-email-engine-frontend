@@ -15,8 +15,10 @@ export const CreateCampaign = () => {
   const [body, setBody] = useState('');
   const [recipients, setRecipients] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [includeLeads, setIncludeLeads] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResearching, setIsResearching] = useState(false);
+  const [researchStatus, setResearchStatus] = useState<'idle' | 'templates' | 'leads'>('idle');
   const [isLoading, setIsLoading] = useState(!!id);
 
   const hasPlaceholders = (text: string) => /{{.*?}}/.test(text);
@@ -25,14 +27,16 @@ export const CreateCampaign = () => {
   const handleAIResearch = async () => {
     if (!prompt) return;
     setIsResearching(true);
+    setResearchStatus('templates');
     try {
       // 1. Research Subject and Body
       const res = await api.research(prompt);
       setSubject(res.subject);
       setBody(res.body);
 
-      // 2. Fetch Potential Leads
-      if (window.confirm('Would you also like the AI to find potential recipient emails for this campaign?')) {
+      // 2. Fetch Potential Leads (if enabled)
+      if (includeLeads) {
+        setResearchStatus('leads');
         const leadRes = await api.generateLeads(prompt);
         if (leadRes.leads && leadRes.leads.length > 0) {
           const newRecipients = leadRes.leads.join('\n');
@@ -43,6 +47,7 @@ export const CreateCampaign = () => {
       alert('AI Research failed. Check your API key.');
     } finally {
       setIsResearching(false);
+      setResearchStatus('idle');
     }
   };
 
@@ -123,6 +128,18 @@ export const CreateCampaign = () => {
                   placeholder="e.g. Find 10 coffee roasters in New York and write a partnership cold email" 
                   rows={3}
                 />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <input 
+                    type="checkbox" 
+                    id="include-leads" 
+                    checked={includeLeads} 
+                    onChange={(e) => setIncludeLeads(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label htmlFor="include-leads" style={{ fontSize: '0.85rem', color: '#666', cursor: 'pointer' }}>
+                    Also find potential recipient emails
+                  </label>
+                </div>
               </div>
               <div style={{ marginTop: '1.6rem' }}>
                 <Button 
@@ -133,7 +150,9 @@ export const CreateCampaign = () => {
                   style={{ padding: '0.6rem 1.2rem'}}
                   isLoading={isResearching}
                 >
-                  {isResearching ? 'Researching...' : 'AI Research'}
+                  {isResearching 
+                    ? (researchStatus === 'templates' ? 'Drafting...' : 'Fetching Leads...') 
+                    : 'AI Research'}
                 </Button>
               </div>
             </div>
