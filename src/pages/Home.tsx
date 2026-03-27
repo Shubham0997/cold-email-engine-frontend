@@ -8,6 +8,7 @@ import { Card } from '../components/Card';
 
 export const Home = () => {
   const [recipient, setRecipient] = useState('');
+  const [subject, setSubject] = useState('Quick Message');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState<{success: boolean, text: string} | null>(null);
@@ -18,9 +19,10 @@ export const Home = () => {
     setIsSending(true);
     setSendResult(null);
     try {
-      const res = await api.sendSingleEmail(recipient, message);
+      const res = await api.sendSingleEmail(recipient, message, subject);
       setSendResult({ success: true, text: `Success! Email ID: ${res.email_id}` });
       setRecipient('');
+      setSubject('Quick Message');
       setMessage('');
     } catch (err) {
       setSendResult({ success: false, text: 'Failed to send email.' });
