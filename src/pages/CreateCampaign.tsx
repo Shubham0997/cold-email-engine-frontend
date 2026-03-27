@@ -20,9 +20,38 @@ export const CreateCampaign = () => {
   const [isResearching, setIsResearching] = useState(false);
   const [researchStatus, setResearchStatus] = useState<'idle' | 'templates' | 'leads'>('idle');
   const [isLoading, setIsLoading] = useState(!!id);
+  const [variableValues, setVariableValues] = useState<{[key: string]: string}>({});
 
-  const hasPlaceholders = (text: string) => /{{.*?}}/.test(text);
-  const containsPlaceholders = hasPlaceholders(subject) || hasPlaceholders(body);
+  const extractPlaceholders = (text: string) => {
+    const matches = text.match(/{{(.*?)}}/g);
+    if (!matches) return [];
+    return Array.from(new Set(matches.map(m => m.slice(2, -2))));
+  };
+
+  const placeholders = Array.from(new Set([
+    ...extractPlaceholders(subject),
+    ...extractPlaceholders(body)
+  ])).filter(p => p !== 'email' && p !== 'name'); // backend handles {{email}}, name is common but let's allow it
+
+  const containsPlaceholders = placeholders.length > 0;
+
+  const handleVariableChange = (key: string, value: string) => {
+    setVariableValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const applyVariables = () => {
+    let newSubject = subject;
+    let newBody = body;
+    Object.entries(variableValues).forEach(([key, val]) => {
+      if (!val) return;
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      newSubject = newSubject.replace(regex, val);
+      newBody = newBody.replace(regex, val);
+    });
+    setSubject(newSubject);
+    setBody(newBody);
+    setVariableValues({});
+  };
 
   const handleAIResearch = async () => {
     if (!prompt) return;
@@ -195,21 +224,41 @@ export const CreateCampaign = () => {
 
           {containsPlaceholders && (
             <div style={{ 
-              backgroundColor: '#fffbeb', 
-              border: '1px solid #fef3c7', 
-              padding: '0.75rem', 
-              borderRadius: '8px', 
+              backgroundColor: '#f8fafc', 
+              border: '1px solid #e2e8f0', 
+              padding: '1.25rem', 
+              borderRadius: '12px', 
               marginTop: '1.5rem',
-              display: 'flex',
-              gap: '0.5rem',
-              alignItems: 'center',
-              color: '#92400e',
-              fontSize: '0.85rem'
+              marginBottom: '1rem'
             }}>
-              <span style={{ fontSize: '1.2rem' }}>⚠️</span>
-              <div>
-                <strong>Placeholders detected!</strong> Please ensure your templates are ready or you've replaced items like <code>{"{{name}}"}</code>.
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>✨</span>
+                <strong style={{ fontSize: '0.95rem', color: '#334155' }}>Refine Template Variables</strong>
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {placeholders.map(p => (
+                  <Input 
+                    key={p}
+                    id={`var-${p}`}
+                    label={`Replace {{${p}}} with...`}
+                    value={variableValues[p] || ''}
+                    onChange={(e) => handleVariableChange(p, e.target.value)}
+                    placeholder={`Enter ${p}...`}
+                  />
+                ))}
+              </div>
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={applyVariables}
+                style={{ marginTop: '0.5rem', width: 'auto', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                disabled={Object.values(variableValues).every(v => !v)}
+              >
+                Apply to Template
+              </Button>
+              <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: '#64748b' }}>
+                * System variables like <code>{"{{email}}"}</code> will be handled automatically during sending.
+              </p>
             </div>
           )}
           
