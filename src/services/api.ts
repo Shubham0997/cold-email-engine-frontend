@@ -88,5 +88,31 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to reset campaign');
     return response.json();
+  },
+
+  research: async (prompt: string): Promise<{subject: string, body: string}> => {
+    const response = await fetch(`${API_BASE}/api/ai/research`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to perform AI research');
+    }
+    return response.json();
+  },
+
+  generateLeads: async (prompt: string): Promise<{leads: string[]}> => {
+    const response = await fetch(`${API_BASE}/api/ai/leads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to generate leads');
+    }
+    return response.json();
   }
 };

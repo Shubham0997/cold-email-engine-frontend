@@ -14,8 +14,37 @@ export const CreateCampaign = () => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [recipients, setRecipients] = useState('');
+  const [prompt, setPrompt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResearching, setIsResearching] = useState(false);
   const [isLoading, setIsLoading] = useState(!!id);
+
+  const hasPlaceholders = (text: string) => /{{.*?}}/.test(text);
+  const containsPlaceholders = hasPlaceholders(subject) || hasPlaceholders(body);
+
+  const handleAIResearch = async () => {
+    if (!prompt) return;
+    setIsResearching(true);
+    try {
+      // 1. Research Subject and Body
+      const res = await api.research(prompt);
+      setSubject(res.subject);
+      setBody(res.body);
+
+      // 2. Fetch Potential Leads
+      if (window.confirm('Would you also like the AI to find potential recipient emails for this campaign?')) {
+        const leadRes = await api.generateLeads(prompt);
+        if (leadRes.leads && leadRes.leads.length > 0) {
+          const newRecipients = leadRes.leads.join('\n');
+          setRecipients(prev => prev ? `${prev}\n${newRecipients}` : newRecipients);
+        }
+      }
+    } catch (err) {
+      alert('AI Research failed. Check your API key.');
+    } finally {
+      setIsResearching(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -41,6 +70,13 @@ export const CreateCampaign = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (containsPlaceholders) {
+      if (!window.confirm('We detected unreplaced placeholders like {{name}} in your template. Are you sure you want to create the campaign as is?')) {
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     
     // Parse recipients (one per line)
@@ -76,6 +112,33 @@ export const CreateCampaign = () => {
     <div style={containerStyle}>
       <Card title={id ? "Edit Campaign" : "Start New Campaign"}>
         <form onSubmit={handleSubmit}>
+          {!id && (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div style={{ flex: 1 }}>
+                <Textarea 
+                  id="ai-prompt"
+                  label="AI Research & Lead Gen Prompt (Optional)" 
+                  value={prompt} 
+                  onChange={(e) => setPrompt(e.target.value)} 
+                  placeholder="e.g. Find 10 coffee roasters in New York and write a partnership cold email" 
+                  rows={3}
+                />
+              </div>
+              <div style={{ marginTop: '1.6rem' }}>
+                <Button 
+                  type="button" 
+                  onClick={handleAIResearch} 
+                  disabled={!prompt || isResearching}
+                  variant="secondary"
+                  style={{ padding: '0.6rem 1.2rem'}}
+                  isLoading={isResearching}
+                >
+                  {isResearching ? 'Researching...' : 'AI Research'}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <Input 
             id="campaign-name"
             label="Campaign Name" 
@@ -110,6 +173,26 @@ export const CreateCampaign = () => {
             required 
             rows={5}
           />
+
+          {containsPlaceholders && (
+            <div style={{ 
+              backgroundColor: '#fffbeb', 
+              border: '1px solid #fef3c7', 
+              padding: '0.75rem', 
+              borderRadius: '8px', 
+              marginTop: '1.5rem',
+              display: 'flex',
+              gap: '0.5rem',
+              alignItems: 'center',
+              color: '#92400e',
+              fontSize: '0.85rem'
+            }}>
+              <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+              <div>
+                <strong>Placeholders detected!</strong> Please ensure your templates are ready or you've replaced items like <code>{"{{name}}"}</code>.
+              </div>
+            </div>
+          )}
           
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
             <Button type="submit" isLoading={isSubmitting} variant="primary">
