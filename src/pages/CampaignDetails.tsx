@@ -30,6 +30,7 @@ export const CampaignDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -114,17 +115,51 @@ export const CampaignDetails = () => {
               <p><strong>Status:</strong> {data.campaign.status}</p>
               <p><strong>Subject:</strong> {data.campaign.subject}</p>
               <div style={{ marginTop: '1rem' }}>
-                <strong>Message:</strong>
-                <pre style={{ 
-                  whiteSpace: 'pre-wrap', 
-                  backgroundColor: '#f8f9fa', 
-                  padding: '10px', 
-                  borderRadius: '4px',
-                  fontSize: '0.8rem',
-                  marginTop: '0.5rem'
-                }}>
-                  {data.campaign.body}
-                </pre>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <strong>Message:</strong>
+                  <button 
+                    onClick={() => setShowRaw(!showRaw)} 
+                    style={{ 
+                      fontSize: '0.75rem', 
+                      padding: '0.2rem 0.5rem', 
+                      cursor: 'pointer',
+                      borderRadius: '4px',
+                      border: '1px solid #ddd',
+                      backgroundColor: '#fff'
+                    }}
+                  >
+                    {showRaw ? 'Show Preview' : 'Show Code'}
+                  </button>
+                </div>
+                
+                {!showRaw ? (
+                  <div 
+                    style={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #eee',
+                      padding: '10px', 
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      maxHeight: '400px',
+                      overflowY: 'auto',
+                      marginTop: '0.5rem'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: data.campaign.body }}
+                  />
+                ) : (
+                  <pre style={{ 
+                    whiteSpace: 'pre-wrap', 
+                    backgroundColor: '#f8f9fa', 
+                    padding: '10px', 
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    marginTop: '0.5rem',
+                    maxHeight: '400px',
+                    overflowY: 'auto'
+                  }}>
+                    {data.campaign.body}
+                  </pre>
+                )}
               </div>
             </div>
           </Card>
