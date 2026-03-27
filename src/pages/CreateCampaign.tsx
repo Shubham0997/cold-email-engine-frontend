@@ -21,6 +21,7 @@ export const CreateCampaign = () => {
   const [researchStatus, setResearchStatus] = useState<'idle' | 'templates' | 'leads'>('idle');
   const [isLoading, setIsLoading] = useState(!!id);
   const [variableValues, setVariableValues] = useState<{[key: string]: string}>({});
+  const [showPreview, setShowPreview] = useState(false);
 
   const extractPlaceholders = (text: string) => {
     const matches = text.match(/{{(.*?)}}/g);
@@ -203,15 +204,68 @@ export const CreateCampaign = () => {
             placeholder="Hello {{name}}, following up!" 
             required 
           />
-          <Textarea 
-            id="campaign-body"
-            label="Email Body Template" 
-            value={body} 
-            onChange={(e) => setBody(e.target.value)} 
-            placeholder="Hi {{name}},\n\nI was impressed by your work at {{company}}..." 
-            required 
-            rows={10}
-          />
+          
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Email Body Template</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  style={{ 
+                    padding: '0.3rem 0.8rem', 
+                    fontSize: '0.8rem', 
+                    borderRadius: '4px', 
+                    border: '1px solid #ddd',
+                    backgroundColor: !showPreview ? '#eee' : '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Edit HTML
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setShowPreview(true)}
+                  style={{ 
+                    padding: '0.3rem 0.8rem', 
+                    fontSize: '0.8rem', 
+                    borderRadius: '4px', 
+                    border: '1px solid #ddd',
+                    backgroundColor: showPreview ? '#eee' : '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Preview
+                </button>
+              </div>
+            </div>
+
+            {!showPreview ? (
+              <Textarea 
+                id="campaign-body"
+                label="" 
+                value={body} 
+                onChange={(e) => setBody(e.target.value)} 
+                placeholder="Hi {{name}},\n\nI was impressed by your work at {{company}}..." 
+                required 
+                rows={10}
+              />
+            ) : (
+              <div 
+                style={{ 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '8px', 
+                  padding: '1.5rem', 
+                  backgroundColor: '#fff', 
+                  minHeight: '300px',
+                  maxHeight: '500px',
+                  overflowY: 'auto'
+                }}
+                dangerouslySetInnerHTML={{ __html: body }}
+              />
+            )}
+          </div>
+
           <Textarea 
             id="campaign-recipients"
             label="Recipients (One email per line)" 

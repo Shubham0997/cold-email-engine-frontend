@@ -15,6 +15,7 @@ export const Home = () => {
   const [isResearching, setIsResearching] = useState(false);
   const [sendResult, setSendResult] = useState<{success: boolean, text: string} | null>(null);
   const [variableValues, setVariableValues] = useState<{[key: string]: string}>({});
+  const [showPreview, setShowPreview] = useState(false);
 
   const extractPlaceholders = (text: string) => {
     const matches = text.match(/{{(.*?)}}/g);
@@ -149,14 +150,66 @@ export const Home = () => {
             placeholder="Quick Message" 
             required 
           />
-          <Textarea 
-            id="quick-message"
-            label="Message Content" 
-            value={message} 
-            onChange={(e) => setMessage(e.target.value)} 
-            placeholder="Hi John, I'd like to reach out regarding..." 
-            required 
-          />
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Message Content</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  style={{ 
+                    padding: '0.3rem 0.8rem', 
+                    fontSize: '0.8rem', 
+                    borderRadius: '4px', 
+                    border: '1px solid #ddd',
+                    backgroundColor: !showPreview ? '#eee' : '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Edit HTML
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setShowPreview(true)}
+                  style={{ 
+                    padding: '0.3rem 0.8rem', 
+                    fontSize: '0.8rem', 
+                    borderRadius: '4px', 
+                    border: '1px solid #ddd',
+                    backgroundColor: showPreview ? '#eee' : '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Preview
+                </button>
+              </div>
+            </div>
+            
+            {!showPreview ? (
+              <Textarea 
+                id="quick-message"
+                label="" 
+                value={message} 
+                onChange={(e) => setMessage(e.target.value)} 
+                placeholder="Hi John, I'd like to reach out regarding..." 
+                required 
+                rows={12}
+              />
+            ) : (
+              <div 
+                style={{ 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '8px', 
+                  padding: '1rem', 
+                  backgroundColor: '#fff', 
+                  minHeight: '200px',
+                  maxHeight: '400px',
+                  overflowY: 'auto'
+                }}
+                dangerouslySetInnerHTML={{ __html: message }}
+              />
+            )}
+          </div>
 
           {containsPlaceholders && (
             <div style={{ 
