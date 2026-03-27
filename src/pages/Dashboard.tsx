@@ -181,6 +181,7 @@ export const Dashboard = () => {
             <thead>
               <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
                 <th style={{ padding: '1rem', color: '#4b5563', fontWeight: 600 }}>Recipient</th>
+                <th style={{ padding: '1rem', color: '#4b5563', fontWeight: 600 }}>Campaign</th>
                 <th style={{ padding: '1rem', color: '#4b5563', fontWeight: 600 }}>Subject</th>
                 <th style={{ padding: '1rem', color: '#4b5563', fontWeight: 600 }}>Status</th>
                 <th style={{ padding: '1rem', color: '#4b5563', fontWeight: 600 }}>Sent At</th>
@@ -191,6 +192,7 @@ export const Dashboard = () => {
               {filteredEmails.map((email, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
                   <td style={{ padding: '1rem', fontWeight: 500 }}>{email.recipient_email}</td>
+                  <td style={{ padding: '1rem', color: '#0066ff', fontWeight: 600, fontSize: '0.8rem' }}>{email.campaign_name}</td>
                   <td style={{ padding: '1rem', color: '#4b5563' }}>{email.subject}</td>
                   <td style={{ padding: '1rem' }}>
                     <span style={{ 
@@ -215,7 +217,7 @@ export const Dashboard = () => {
               ))}
               {filteredEmails.length === 0 && (
                 <tr>
-                  <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>No emails match the selected filters.</td>
+                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>No emails match the selected filters.</td>
                 </tr>
               )}
             </tbody>
