@@ -133,6 +133,46 @@ export const CreateCampaign = () => {
     }
   };
 
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      // Simple CSV parsing: split by lines, then by comma, and find something that looks like an email
+      const lines = text.split(/\r?\n/);
+      const extractedEmails: string[] = [];
+
+      lines.forEach(line => {
+        const columns = line.split(',');
+        columns.forEach(col => {
+          const trimmed = col.trim();
+          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+            extractedEmails.push(trimmed);
+          }
+        });
+      });
+
+      if (extractedEmails.length > 0) {
+        const uniqueEmails = Array.from(new Set(extractedEmails));
+        setRecipients(prev => {
+          const existing = prev.split('\n').map(e => e.trim()).filter(Boolean);
+          const combined = Array.from(new Set([...existing, ...uniqueEmails]));
+          return combined.join('\n');
+        });
+        alert(`Successfully imported ${uniqueEmails.length} unique emails from CSV.`);
+      } else {
+        alert('No valid email addresses found in the CSV file.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so the same file can be uploaded again if needed
+    e.target.value = '';
+  };
+
   const containerStyle: React.CSSProperties = {
     maxWidth: '800px',
     margin: '2rem auto',
@@ -266,9 +306,42 @@ export const CreateCampaign = () => {
             )}
           </div>
 
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Recipients (One email per line)</label>
+            <div style={{ position: 'relative' }}>
+              <input 
+                type="file" 
+                id="csv-upload" 
+                accept=".csv,.txt" 
+                onChange={handleCsvUpload} 
+                style={{ 
+                  position: 'absolute', 
+                  width: '1px', 
+                  height: '1px', 
+                  padding: '0', 
+                  overflow: 'hidden', 
+                  clip: 'rect(0,0,0,0)', 
+                  whiteSpace: 'nowrap', 
+                  border: '0' 
+                }} 
+              />
+              <label 
+                htmlFor="csv-upload" 
+                style={{ 
+                  fontSize: '0.8rem', 
+                  color: '#0066ff', 
+                  cursor: 'pointer', 
+                  fontWeight: 600,
+                  textDecoration: 'underline'
+                }}
+              >
+                Upload CSV
+              </label>
+            </div>
+          </div>
           <Textarea 
             id="campaign-recipients"
-            label="Recipients (One email per line)" 
+            label="" 
             value={recipients} 
             onChange={(e) => setRecipients(e.target.value)} 
             placeholder="john@example.com&#10;jane@company.com" 
