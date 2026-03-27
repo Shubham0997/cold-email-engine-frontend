@@ -10,8 +10,24 @@ export const Home = () => {
   const [recipient, setRecipient] = useState('');
   const [subject, setSubject] = useState('Quick Message');
   const [message, setMessage] = useState('');
+  const [prompt, setPrompt] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isResearching, setIsResearching] = useState(false);
   const [sendResult, setSendResult] = useState<{success: boolean, text: string} | null>(null);
+
+  const handleAIResearch = async () => {
+    if (!prompt) return;
+    setIsResearching(true);
+    try {
+      const res = await api.research(prompt);
+      setSubject(res.subject);
+      setMessage(res.body);
+    } catch (err) {
+      alert('AI Research failed. Check your API key.');
+    } finally {
+      setIsResearching(false);
+    }
+  };
 
   const handleQuickSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +67,31 @@ export const Home = () => {
       
       <Card title="Send Tracked Email">
         <form onSubmit={handleQuickSend}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
+            <div style={{ flex: 1 }}>
+              <Textarea 
+                id="ai-prompt"
+                label="AI Research Prompt (Optional)" 
+                value={prompt} 
+                onChange={(e) => setPrompt(e.target.value)} 
+                placeholder="e.g. Write a cold email for a coffee roasting partnership" 
+                rows={3}
+              />
+            </div>
+            <div style={{ marginBottom: '1.1rem' }}>
+              <Button 
+                type="button" 
+                onClick={handleAIResearch} 
+                disabled={!prompt || isResearching}
+                variant="secondary"
+                style={{ padding: '0.6rem 1.2rem'}}
+                isLoading={isResearching}
+              >
+                {isResearching ? 'Researching...' : 'AI Research'}
+              </Button>
+            </div>
+          </div>
+
           <Input 
             id="quick-recipient"
             label="Recipient Email" 
