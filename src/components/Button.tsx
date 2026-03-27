@@ -14,33 +14,35 @@ export const Button: React.FC<ButtonProps> = ({
   ...props 
 }) => {
   const baseStyle: React.CSSProperties = {
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
+    padding: '0.625rem 1.25rem',
+    borderRadius: 'var(--radius)',
     border: '1px solid transparent',
-    fontSize: '0.9rem',
-    fontWeight: 500,
+    fontSize: '0.875rem',
+    fontWeight: 600,
     cursor: (disabled || isLoading) ? 'not-allowed' : 'pointer',
     opacity: (disabled || isLoading) ? 0.7 : 1,
-    transition: 'background-color 0.2s',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '0.5rem'
+    gap: '0.5rem',
+    fontFamily: 'inherit'
   };
 
   const variants = {
     primary: {
-      backgroundColor: '#0066ff',
-      color: 'white',
+      backgroundColor: 'var(--primary)',
+      color: 'var(--primary-foreground)',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
     },
     secondary: {
-      backgroundColor: '#f0f0f0',
-      color: '#333',
+      backgroundColor: 'var(--secondary)',
+      color: 'var(--secondary-foreground)',
     },
     outline: {
       backgroundColor: 'transparent',
-      border: '1px solid #ccc',
-      color: '#333',
+      border: '1px solid var(--border)',
+      color: 'var(--primary)',
     }
   };
 
@@ -50,7 +52,18 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading && <span style={{ width: '12px', height: '12px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />}
+      {isLoading && (
+        <span style={{ 
+          width: '14px', 
+          height: '14px', 
+          border: '2px solid currentColor', 
+          borderTopColor: 'transparent', 
+          borderRadius: '50%', 
+          display: 'inline-block',
+          animation: 'spin 1s linear infinite',
+          flexShrink: 0
+        }} />
+      )}
       {children}
     </button>
   );

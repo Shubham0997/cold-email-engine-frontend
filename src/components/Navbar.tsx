@@ -4,15 +4,16 @@ export const Navbar = () => {
   const location = useLocation();
   const navStyle: React.CSSProperties = {
     backgroundColor: '#fff',
-    borderBottom: '1px solid #eee',
-    padding: '1rem 2rem',
+    borderBottom: '1px solid var(--border)',
+    padding: '0.75rem 2rem',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1rem',
+    marginBottom: '2rem',
     position: 'sticky',
     top: 0,
-    zIndex: 100
+    zIndex: 100,
+    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
   };
 
   const navLinksStyle: React.CSSProperties = {
@@ -23,30 +24,34 @@ export const Navbar = () => {
 
   const linkStyle: React.CSSProperties = {
     textDecoration: 'none',
-    color: '#666',
-    fontSize: '0.9rem',
-    fontWeight: 600
+    color: 'var(--muted-foreground)',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    transition: 'color 0.2s ease'
   };
 
   const activeLinkStyle: React.CSSProperties = {
     ...linkStyle,
-    color: '#0066ff'
+    color: 'var(--accent)'
   };
 
   const getStyle = (path: string) => {
-    if (path === '/') return location.pathname === '/' ? activeLinkStyle : linkStyle;
-    return location.pathname.startsWith(path) ? activeLinkStyle : linkStyle;
+    const isActive = path === '/' 
+      ? location.pathname === '/' 
+      : location.pathname.startsWith(path);
+    
+    return isActive ? activeLinkStyle : linkStyle;
   };
 
   return (
     <nav style={navStyle}>
-      <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#111' }}>
-        ColdEmail<span style={{ color: '#0066ff' }}>Engine</span>
+      <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--primary)', letterSpacing: '-0.025em' }}>
+        MailFlow<span style={{ color: 'var(--accent)' }}>AI</span>
       </div>
       <div style={navLinksStyle}>
-        <Link to="/" style={getStyle('/')}>Single Send</Link>
-        <Link to="/campaigns" style={getStyle('/campaigns')}>Campaigns</Link>
-        <Link to="/stats" style={getStyle('/stats')}>Analytics</Link>
+        <Link to="/" style={getStyle('/')}>Outreach Assistant</Link>
+        <Link to="/campaigns" style={getStyle('/campaigns')}>Campaign Manager</Link>
+        <Link to="/stats" style={getStyle('/stats')}>Performance Analytics</Link>
       </div>
     </nav>
   );

@@ -1,139 +1,127 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { api, Campaign } from '../services/api';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
-import { api } from '../services/api';
-
-interface Campaign {
-  id: string;
-  name: string;
-  status: string;
-  total_recipients: number;
-  created_at: string;
-}
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { useLoading } from '../context/LoadingContext';
 
 export const CampaignList = () => {
-  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+  const { setIsLoading: setGlobalLoading } = useLoading();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        const data = await api.getCampaigns();
-        setCampaigns(data);
-      } catch (err) {
-        console.error('Failed to fetch campaigns', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchCampaigns();
+    api.getCampaigns()
+      .then(setCampaigns)
+      .catch((err: any) => console.error('Failed to load campaigns', err))
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const containerStyle: React.CSSProperties = {
-    maxWidth: '900px',
-    margin: '2rem auto',
-    padding: '0 1rem'
+  const handleDelete = async (id: string) => {
+    const confirmed = await confirm({
+      title: 'Delete Campaign',
+      message: 'Are you sure you want to delete this campaign?',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!confirmed) return;
+    
+    setGlobalLoading(true, 'Deleting Campaign...');
+    try {
+      await api.deleteCampaign(id);
+      setCampaigns(prev => prev.filter(c => c.id !== id));
+      showToast('Campaign deleted successfully');
+    } catch (err) {
+      showToast('Failed to delete campaign', 'error');
+    } finally {
+      setGlobalLoading(false);
+    }
   };
 
-  if (isLoading) {
-    return <div style={containerStyle}><Card title="Campaigns">Loading campaigns...</Card></div>;
-  }
+  if (isLoading) return <div className="container-wide">Loading campaigns...</div>;
 
   return (
-    <div style={containerStyle}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ color: '#111' }}>Email Campaigns</h1>
-        <Button onClick={() => navigate('/campaigns/create')} variant="primary">
-          + Create New Campaign
-        </Button>
-      </header>
-
-      <Card title="Your Campaigns">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #eee' }}>
-                <th style={{ padding: '1rem 0' }}>Campaign Name</th>
-                <th style={{ padding: '1rem 0' }}>Status</th>
-                <th style={{ padding: '1rem 0' }}>Recipients</th>
-                <th style={{ padding: '1rem 0' }}>Created At</th>
-                <th style={{ padding: '1rem 0' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
-                    No campaigns found. Start by creating one!
-                  </td>
-                </tr>
-              ) : (
-                campaigns.map((camp) => (
-                  <tr key={camp.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                    <td style={{ padding: '1rem 0', fontWeight: 600 }}>{camp.name}</td>
-                    <td style={{ padding: '1rem 0' }}>
-                      <span style={{ 
-                        padding: '4px 8px', 
-                        borderRadius: '12px', 
-                        fontSize: '0.8rem', 
-                        fontWeight: 600,
-                        backgroundColor: camp.status === 'COMPLETED' ? '#e6f4ea' : camp.status === 'DRAFT' ? '#eee' : '#fef7e0',
-                        color: camp.status === 'COMPLETED' ? '#1e8e3e' : camp.status === 'DRAFT' ? '#666' : '#b06000'
-                      }}>
-                        {camp.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem 0', color: '#666' }}>
-                      {camp.total_recipients} recipients
-                    </td>
-                    <td style={{ padding: '1rem 0', color: '#666', fontSize: '0.9rem' }}>
-                      {new Date(camp.created_at).toLocaleString()}
-                    </td>
-                    <td style={{ padding: '1rem 0' }}>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        {camp.status === 'DRAFT' && (
-                          <button 
-                            onClick={() => api.startCampaign(camp.id).then(() => window.location.reload())}
-                            style={{ background: 'none', border: 'none', color: '#1e8e3e', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                          >
-                            Start
-                          </button>
-                        )}
-                        {camp.status === 'COMPLETED' && (
-                          <button 
-                            onClick={() => {
-                              if(window.confirm('Reset this campaign to rerun?')) {
-                                api.resetCampaign(camp.id).then(() => window.location.reload());
-                              }
-                            }}
-                            style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '0.85rem' }}
-                          >
-                            Reset
-                          </button>
-                        )}
-                        <Link to={`/campaigns/edit/${camp.id}`} style={{ color: '#666', textDecoration: 'none', fontSize: '0.85rem' }}>
-                          Edit
-                        </Link>
-                        <Link to={`/campaigns/${camp.id}`} style={{ color: '#0066ff', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600 }}>
-                          Details
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+    <div className="container-wide">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '1.875rem' }}>Outreach Campaigns</h1>
+          <p style={{ color: 'var(--muted-foreground)', margin: '0.5rem 0 0', fontSize: '0.925rem' }}>Manage your sequences and lead lists</p>
         </div>
-      </Card>
-      
-      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-        <Link to="/" style={{ color: '#666', textDecoration: 'none', fontSize: '0.9rem' }}>
-          &larr; Back to Single Email Send
+        <Link to="/campaigns/create">
+          <Button variant="primary">+ New Campaign</Button>
         </Link>
       </div>
+
+      <Card title="All Campaigns">
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>Name</th>
+              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>Subject Template</th>
+              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>Status</th>
+              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>Created</th>
+              <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.05em' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {campaigns.map((c) => (
+              <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary)' }}>{c.name}</td>
+                <td style={{ padding: '1rem', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>{c.subject}</td>
+                <td style={{ padding: '1rem' }}>
+                  <span style={{ 
+                    padding: '0.375rem 0.625rem', 
+                    borderRadius: '2rem', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 600,
+                    backgroundColor: c.status === 'COMPLETED' ? '#ecfdf5' : 'var(--secondary)',
+                    color: c.status === 'COMPLETED' ? '#059669' : 'var(--slate-700)',
+                    border: '1px solid currentColor',
+                    display: 'inline-flex',
+                    alignItems: 'center'
+                  }}>
+                    {c.status}
+                  </span>
+                </td>
+                <td style={{ padding: '1rem', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+                  {new Date(c.created_at).toLocaleDateString()}
+                </td>
+                <td style={{ padding: '1rem', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+                  <Link 
+                    to={`/campaigns/${c.id}`} 
+                    style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}
+                  >
+                    View
+                  </Link>
+                  <button 
+                    onClick={() => handleDelete(c.id)}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: '#ef4444', 
+                      cursor: 'pointer', 
+                      fontWeight: 600, 
+                      fontSize: '0.875rem',
+                      padding: 0
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {campaigns.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>No campaigns found. Start one!</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
     </div>
   );
 };

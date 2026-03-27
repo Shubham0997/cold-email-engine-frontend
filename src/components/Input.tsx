@@ -14,18 +14,21 @@ export const Input: React.FC<InputProps> = ({ label, style, id, ...props }) => {
   };
 
   const labelStyle: React.CSSProperties = {
-    fontSize: '0.85rem',
-    fontWeight: 500,
-    color: '#555',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    color: 'var(--slate-700)',
+    marginBottom: '0.25rem'
   };
 
   const inputStyle: React.CSSProperties = {
-    padding: '0.6rem 0.75rem',
-    borderRadius: '4px',
-    border: '1px solid #d1d5db',
-    fontSize: '0.95rem',
+    padding: '0.625rem 0.875rem',
+    borderRadius: 'var(--radius)',
+    border: '1px solid var(--border)',
+    fontSize: '0.875rem',
     outline: 'none',
-    transition: 'border-color 0.2s',
+    backgroundColor: '#fff',
+    color: 'var(--primary)',
+    transition: 'all 0.2s ease',
   };
 
   return (

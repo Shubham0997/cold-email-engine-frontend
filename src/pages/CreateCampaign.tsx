@@ -5,8 +5,14 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Textarea } from '../components/Textarea';
 import { api } from '../services/api';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { extractPlaceholders } from '../utils/emailUtils';
+import { parseEmailsFromCsv } from '../utils/csvUtils';
 
 export const CreateCampaign = () => {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   
@@ -21,18 +27,12 @@ export const CreateCampaign = () => {
   const [researchStatus, setResearchStatus] = useState<'idle' | 'templates' | 'leads'>('idle');
   const [isLoading, setIsLoading] = useState(!!id);
   const [variableValues, setVariableValues] = useState<{[key: string]: string}>({});
-  const [showPreview, setShowPreview] = useState(false);
-
-  const extractPlaceholders = (text: string) => {
-    const matches = text.match(/{{(.*?)}}/g);
-    if (!matches) return [];
-    return Array.from(new Set(matches.map(m => m.slice(2, -2))));
-  };
+  const [showPreview, setShowPreview] = useState(true);
 
   const placeholders = Array.from(new Set([
     ...extractPlaceholders(subject),
     ...extractPlaceholders(body)
-  ])).filter(p => p !== 'email' && p !== 'name'); // backend handles {{email}}, name is common but let's allow it
+  ])).filter(p => p !== 'email' && p !== 'name'); 
 
   const containsPlaceholders = placeholders.length > 0;
 
@@ -40,7 +40,7 @@ export const CreateCampaign = () => {
     setVariableValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const applyVariables = () => {
+  const handleApplyVariables = () => {
     let newSubject = subject;
     let newBody = body;
     Object.entries(variableValues).forEach(([key, val]) => {
@@ -59,12 +59,10 @@ export const CreateCampaign = () => {
     setIsResearching(true);
     setResearchStatus('templates');
     try {
-      // 1. Research Subject and Body (is_campaign = true)
       const res = await api.research(prompt, true);
       setSubject(res.subject);
       setBody(res.body);
 
-      // 2. Fetch Potential Leads (if enabled)
       if (includeLeads) {
         setResearchStatus('leads');
         const leadRes = await api.generateLeads(prompt);
@@ -74,7 +72,7 @@ export const CreateCampaign = () => {
         }
       }
     } catch (err) {
-      alert('AI Research failed. Check your API key.');
+      showToast('AI Research failed. Check your API key.', 'error');
     } finally {
       setIsResearching(false);
       setResearchStatus('idle');
@@ -90,11 +88,10 @@ export const CreateCampaign = () => {
           setName(campaign.name);
           setSubject(campaign.subject);
           setBody(campaign.body);
-          // Convert recipients list back to newline-separated string
           setRecipients(data.recipients.map((r: any) => r.email).join('\n'));
         } catch (err) {
           console.error('Failed to fetch campaign for editing', err);
-          alert('Failed to load campaign data');
+          showToast('Failed to load campaign data', 'error');
         } finally {
           setIsLoading(false);
         }
@@ -107,14 +104,16 @@ export const CreateCampaign = () => {
     e.preventDefault();
     
     if (containsPlaceholders) {
-      if (!window.confirm('We detected unreplaced placeholders like {{name}} in your template. Are you sure you want to create the campaign as is?')) {
-        return;
-      }
+      const confirmed = await confirm({
+        title: 'Unreplaced Placeholders',
+        message: 'We detected unreplaced placeholders like {{name}} in your template. Are you sure you want to create the campaign as is?',
+        confirmLabel: 'Create Anyway',
+      });
+      if (!confirmed) return;
     }
 
     setIsSubmitting(true);
     
-    // Parse recipients (one per line)
     const recipientList = recipients.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0);
@@ -126,8 +125,8 @@ export const CreateCampaign = () => {
         await api.createCampaign(name, subject, body, recipientList);
       }
       navigate('/campaigns');
-    } catch (err) {
-      alert(`Failed to ${id ? 'update' : 'create'} campaign`);
+    } catch (err: any) {
+      showToast(err.message || `Failed to ${id ? 'update' : 'create'} campaign`, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -140,51 +139,29 @@ export const CreateCampaign = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      if (!text) return;
+      const uniqueEmails = parseEmailsFromCsv(text);
 
-      // Simple CSV parsing: split by lines, then by comma, and find something that looks like an email
-      const lines = text.split(/\r?\n/);
-      const extractedEmails: string[] = [];
-
-      lines.forEach(line => {
-        const columns = line.split(',');
-        columns.forEach(col => {
-          const trimmed = col.trim();
-          if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-            extractedEmails.push(trimmed);
-          }
-        });
-      });
-
-      if (extractedEmails.length > 0) {
-        const uniqueEmails = Array.from(new Set(extractedEmails));
+      if (uniqueEmails.length > 0) {
         setRecipients(prev => {
           const existing = prev.split('\n').map(e => e.trim()).filter(Boolean);
           const combined = Array.from(new Set([...existing, ...uniqueEmails]));
           return combined.join('\n');
         });
-        alert(`Successfully imported ${uniqueEmails.length} unique emails from CSV.`);
+        showToast(`Successfully imported ${uniqueEmails.length} unique emails from CSV.`);
       } else {
-        alert('No valid email addresses found in the CSV file.');
+        showToast('No valid email addresses found in the CSV file.', 'error');
       }
     };
     reader.readAsText(file);
-    // Reset input so the same file can be uploaded again if needed
     e.target.value = '';
   };
 
-  const containerStyle: React.CSSProperties = {
-    maxWidth: '800px',
-    margin: '2rem auto',
-    padding: '0 1rem'
-  };
-
   if (isLoading) {
-    return <div style={containerStyle}><Card title="Editing Campaign">Loading campaign data...</Card></div>;
+    return <div className="container-narrow"><Card title="Editing Campaign">Loading campaign data...</Card></div>;
   }
 
   return (
-    <div style={containerStyle}>
+    <div className="container-narrow">
       <Card title={id ? "Edit Campaign" : "Start New Campaign"}>
         <form onSubmit={handleSubmit}>
           {!id && (
@@ -204,9 +181,9 @@ export const CreateCampaign = () => {
                     id="include-leads" 
                     checked={includeLeads} 
                     onChange={(e) => setIncludeLeads(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: 'pointer', width: '1rem', height: '1rem', accentColor: 'var(--accent)' }}
                   />
-                  <label htmlFor="include-leads" style={{ fontSize: '0.85rem', color: '#666', cursor: 'pointer' }}>
+                  <label htmlFor="include-leads" style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', cursor: 'pointer', fontWeight: 500 }}>
                     Also find potential recipient emails
                   </label>
                 </div>
@@ -246,19 +223,22 @@ export const CreateCampaign = () => {
           />
           
           <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Email Body Template</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)' }}>Email Body Template</label>
+              <div style={{ display: 'flex', backgroundColor: 'var(--secondary)', padding: '0.25rem', borderRadius: '0.5rem' }}>
                 <button 
                   type="button"
                   onClick={() => setShowPreview(false)}
                   style={{ 
-                    padding: '0.3rem 0.8rem', 
-                    fontSize: '0.8rem', 
-                    borderRadius: '4px', 
-                    border: '1px solid #ddd',
-                    backgroundColor: !showPreview ? '#eee' : '#fff',
-                    cursor: 'pointer'
+                    padding: '0.375rem 0.75rem', 
+                    fontSize: '0.75rem', 
+                    borderRadius: '0.375rem', 
+                    border: 'none',
+                    backgroundColor: !showPreview ? '#fff' : 'transparent',
+                    color: !showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: !showPreview ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
                   }}
                 >
                   Edit HTML
@@ -267,19 +247,21 @@ export const CreateCampaign = () => {
                   type="button"
                   onClick={() => setShowPreview(true)}
                   style={{ 
-                    padding: '0.3rem 0.8rem', 
-                    fontSize: '0.8rem', 
-                    borderRadius: '4px', 
-                    border: '1px solid #ddd',
-                    backgroundColor: showPreview ? '#eee' : '#fff',
-                    cursor: 'pointer'
+                    padding: '0.375rem 0.75rem', 
+                    fontSize: '0.75rem', 
+                    borderRadius: '0.375rem', 
+                    border: 'none',
+                    backgroundColor: showPreview ? '#fff' : 'transparent',
+                    color: showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: showPreview ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
                   }}
                 >
                   Preview
                 </button>
               </div>
             </div>
-
             {!showPreview ? (
               <Textarea 
                 id="campaign-body"
@@ -293,8 +275,8 @@ export const CreateCampaign = () => {
             ) : (
               <div 
                 style={{ 
-                  border: '1px solid #e2e8f0', 
-                  borderRadius: '8px', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: 'var(--radius)', 
                   padding: '1.5rem', 
                   backgroundColor: '#fff', 
                   minHeight: '300px',
@@ -346,21 +328,20 @@ export const CreateCampaign = () => {
             onChange={(e) => setRecipients(e.target.value)} 
             placeholder="john@example.com&#10;jane@company.com" 
             required 
-            rows={5}
           />
 
           {containsPlaceholders && (
             <div style={{ 
-              backgroundColor: '#f8fafc', 
-              border: '1px solid #e2e8f0', 
-              padding: '1.25rem', 
-              borderRadius: '12px', 
+              backgroundColor: 'var(--muted)', 
+              border: '1px solid var(--border)', 
+              padding: '1.5rem', 
+              borderRadius: 'var(--radius)', 
               marginTop: '1.5rem',
-              marginBottom: '1rem'
+              marginBottom: '1.5rem'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>✨</span>
-                <strong style={{ fontSize: '0.95rem', color: '#334155' }}>Refine Template Variables</strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>✨</span>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--primary)' }}>Refine Template Variables</strong>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {placeholders.map(p => (
@@ -377,7 +358,7 @@ export const CreateCampaign = () => {
               <Button 
                 type="button" 
                 variant="secondary" 
-                onClick={applyVariables}
+                onClick={handleApplyVariables}
                 style={{ marginTop: '0.5rem', width: 'auto', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 disabled={Object.values(variableValues).every(v => !v)}
               >

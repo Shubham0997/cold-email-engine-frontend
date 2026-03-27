@@ -19,6 +19,15 @@ export interface EmailStats {
   emails: EmailRecipient[];
 }
 
+export interface Campaign {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  status: 'DRAFT' | 'SENDING' | 'COMPLETED';
+  created_at: string;
+}
+
 export const api = {
   sendSingleEmail: async (recipient: string, message: string, subject?: string): Promise<{ email_id: string }> => {
     const response = await fetch(`${API_BASE}/email/send-single`, {
@@ -48,7 +57,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, subject, body, recipients })
     });
-    if (!response.ok) throw new Error('Failed to create campaign');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to create campaign');
+    }
     return response.json();
   },
 
@@ -78,7 +90,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, subject, body, recipients })
     });
-    if (!response.ok) throw new Error('Failed to update campaign');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to update campaign');
+    }
     return response.json();
   },
 
@@ -87,6 +102,14 @@ export const api = {
       method: 'POST'
     });
     if (!response.ok) throw new Error('Failed to reset campaign');
+    return response.json();
+  },
+
+  deleteCampaign: async (id: string) => {
+    const response = await fetch(`${API_BASE}/campaigns/${id}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete campaign');
     return response.json();
   },
 

@@ -1,32 +1,27 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '../services/api';
-import { Button } from '../components/Button';
-import { Input } from '../components/Input';
-import { Textarea } from '../components/Textarea';
 import { Card } from '../components/Card';
+import { Input } from '../components/Input';
+import { Button } from '../components/Button';
+import { Textarea } from '../components/Textarea';
+import { useToast } from '../context/ToastContext';
+import { extractPlaceholders, applyVariables } from '../utils/emailUtils';
 
 export const Home = () => {
-  const [recipient, setRecipient] = useState('');
-  const [subject, setSubject] = useState('Quick Message');
-  const [message, setMessage] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const { showToast } = useToast();
+  const [researchPrompt, setResearchPrompt] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [isResearching, setIsResearching] = useState(false);
-  const [sendResult, setSendResult] = useState<{success: boolean, text: string} | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [variableValues, setVariableValues] = useState<{[key: string]: string}>({});
-  const [showPreview, setShowPreview] = useState(false);
-
-  const extractPlaceholders = (text: string) => {
-    const matches = text.match(/{{(.*?)}}/g);
-    if (!matches) return [];
-    return Array.from(new Set(matches.map(m => m.slice(2, -2))));
-  };
 
   const placeholders = Array.from(new Set([
     ...extractPlaceholders(subject),
-    ...extractPlaceholders(message)
-  ])).filter(p => p !== 'email' && p !== 'Name'); // Filter out system ones if needed, but let's keep Name if it's there
+    ...extractPlaceholders(body)
+  ])).filter(p => p !== 'email'); 
 
   const containsPlaceholders = placeholders.length > 0;
 
@@ -34,136 +29,110 @@ export const Home = () => {
     setVariableValues(prev => ({ ...prev, [key]: value }));
   };
 
-  const applyVariables = () => {
-    let newSubject = subject;
-    let newMessage = message;
-    Object.entries(variableValues).forEach(([key, val]) => {
-      if (!val) return;
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      newSubject = newSubject.replace(regex, val);
-      newMessage = newMessage.replace(regex, val);
-    });
+  const handleApplyVariables = () => {
+    const { subject: newSubject, body: newBody } = applyVariables(subject, body, variableValues);
     setSubject(newSubject);
-    setMessage(newMessage);
+    setBody(newBody);
     setVariableValues({});
   };
 
-  const handleAIResearch = async () => {
-    if (!prompt) return;
+  const handleResearch = async () => {
+    if (!researchPrompt) return;
     setIsResearching(true);
     try {
-      const res = await api.research(prompt);
-      setSubject(res.subject);
-      setMessage(res.body);
+      const data = await api.research(researchPrompt);
+      setSubject(data.subject);
+      setBody(data.body);
     } catch (err) {
-      alert('AI Research failed. Check your API key.');
+      showToast('AI Research failed. Check your Gemini API key in backend.', 'error');
     } finally {
       setIsResearching(false);
     }
   };
 
-  const handleQuickSend = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipient || !message) return;
+    if (!recipientEmail || !subject || !body) return;
     
-    if (containsPlaceholders) {
-      if (!window.confirm('We detected unreplaced placeholders like {{Name}} in your email. Are you sure you want to send it as is?')) {
-        return;
-      }
-    }
-
     setIsSending(true);
-    setSendResult(null);
     try {
-      const res = await api.sendSingleEmail(recipient, message, subject);
-      setSendResult({ success: true, text: `Success! Email ID: ${res.email_id}` });
-      setRecipient('');
-      setSubject('Quick Message');
-      setMessage('');
+      await api.sendSingleEmail(
+        recipientEmail, 
+        body, 
+        subject
+      );
+      showToast('Email sent successfully!');
+      // Optional: Clear form
+      setRecipientEmail('');
     } catch (err) {
-      setSendResult({ success: false, text: 'Failed to send email.' });
+      showToast('Failed to send email.', 'error');
     } finally {
       setIsSending(false);
     }
   };
 
-  const containerStyle: React.CSSProperties = {
-    maxWidth: '800px',
-    margin: '3rem auto',
-    padding: '0 1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2rem'
-  };
-
   return (
-    <div style={containerStyle}>
-      <header style={{ textAlign: 'center', marginBottom: '1rem' }}>
-        <h1 style={{ marginBottom: '0.5rem', color: '#111' }}>Cold Email Engine</h1>
-        <Link to="/stats" style={{ color: '#0066ff', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 600 }}>
-          Go to Analytics Dashboard &rarr;
-        </Link>
-      </header>
-      
-      <Card title="Send Tracked Email">
-        <form onSubmit={handleQuickSend}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
-            <div style={{ flex: 1 }}>
-              <Textarea 
-                id="ai-prompt"
-                label="AI Research Prompt (Optional)" 
-                value={prompt} 
-                onChange={(e) => setPrompt(e.target.value)} 
-                placeholder="e.g. Write a cold email for a coffee roasting partnership" 
-                rows={3}
-              />
-            </div>
-            <div style={{ marginBottom: '1.1rem' }}>
-              <Button 
-                type="button" 
-                onClick={handleAIResearch} 
-                disabled={!prompt || isResearching}
-                variant="secondary"
-                style={{ padding: '0.6rem 1.2rem'}}
-                isLoading={isResearching}
-              >
-                {isResearching ? 'Researching...' : 'AI Research'}
-              </Button>
-            </div>
+    <div className="container-narrow">
+      <Card title="AI Outreach Assistant">
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+          <div style={{ flex: 1 }}>
+            <Textarea 
+              label="Research Topic / Context" 
+              value={researchPrompt} 
+              onChange={(e) => setResearchPrompt(e.target.value)} 
+              placeholder="e.g. A coffee equipment supplier reaching out to a local cafe owner about a new espresso machine" 
+              rows={3}
+            />
+          </div>
+          <div style={{ marginTop: '1.6rem' }}>
+            <Button 
+              onClick={handleResearch} 
+              disabled={!researchPrompt || isResearching} 
+              isLoading={isResearching}
+              variant="secondary"
+            >
+              Get AI Draft
+            </Button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSend}>
+          <div style={{ marginBottom: '1rem' }}>
+            <Input 
+              label="Recipient Email" 
+              type="email" 
+              value={recipientEmail} 
+              onChange={(e) => setRecipientEmail(e.target.value)} 
+              placeholder="jane@example.com" 
+              required 
+            />
           </div>
 
           <Input 
-            id="quick-recipient"
-            label="Recipient Email" 
-            type="email" 
-            value={recipient} 
-            onChange={(e) => setRecipient(e.target.value)} 
-            placeholder="john@example.com" 
-            required 
-          />
-          <Input 
-            id="quick-subject"
-            label="Email Subject" 
-            type="text" 
+            label="Subject" 
             value={subject} 
             onChange={(e) => setSubject(e.target.value)} 
-            placeholder="Quick Message" 
+            placeholder="Introduction from..." 
             required 
           />
-          <div style={{ marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Message Content</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+          
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)' }}>Email Body (HTML Supported)</label>
+              <div style={{ display: 'flex', backgroundColor: 'var(--secondary)', padding: '0.25rem', borderRadius: '0.5rem' }}>
                 <button 
                   type="button"
                   onClick={() => setShowPreview(false)}
                   style={{ 
-                    padding: '0.3rem 0.8rem', 
-                    fontSize: '0.8rem', 
-                    borderRadius: '4px', 
-                    border: '1px solid #ddd',
-                    backgroundColor: !showPreview ? '#eee' : '#fff',
-                    cursor: 'pointer'
+                    padding: '0.375rem 0.75rem', 
+                    fontSize: '0.75rem', 
+                    borderRadius: '0.375rem', 
+                    border: 'none',
+                    backgroundColor: !showPreview ? '#fff' : 'transparent',
+                    color: !showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: !showPreview ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
                   }}
                 >
                   Edit HTML
@@ -172,63 +141,65 @@ export const Home = () => {
                   type="button"
                   onClick={() => setShowPreview(true)}
                   style={{ 
-                    padding: '0.3rem 0.8rem', 
-                    fontSize: '0.8rem', 
-                    borderRadius: '4px', 
-                    border: '1px solid #ddd',
-                    backgroundColor: showPreview ? '#eee' : '#fff',
-                    cursor: 'pointer'
+                    padding: '0.375rem 0.75rem', 
+                    fontSize: '0.75rem', 
+                    borderRadius: '0.375rem', 
+                    border: 'none',
+                    backgroundColor: showPreview ? '#fff' : 'transparent',
+                    color: showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: showPreview ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
                   }}
                 >
                   Preview
                 </button>
               </div>
             </div>
-            
+
             {!showPreview ? (
               <Textarea 
-                id="quick-message"
                 label="" 
-                value={message} 
-                onChange={(e) => setMessage(e.target.value)} 
-                placeholder="Hi John, I'd like to reach out regarding..." 
+                value={body} 
+                onChange={(e) => setBody(e.target.value)} 
+                placeholder="Hi {{name}}, ..." 
                 required 
                 rows={12}
               />
             ) : (
               <div 
                 style={{ 
-                  border: '1px solid #e2e8f0', 
-                  borderRadius: '8px', 
-                  padding: '1rem', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: 'var(--radius)', 
+                  padding: '1.5rem', 
                   backgroundColor: '#fff', 
-                  minHeight: '200px',
-                  maxHeight: '400px',
+                  minHeight: '300px',
+                  maxHeight: '500px',
                   overflowY: 'auto'
                 }}
-                dangerouslySetInnerHTML={{ __html: message }}
+                dangerouslySetInnerHTML={{ __html: body }}
               />
             )}
           </div>
 
           {containsPlaceholders && (
             <div style={{ 
-              backgroundColor: '#f8fafc', 
-              border: '1px solid #e2e8f0', 
-              padding: '1.25rem', 
-              borderRadius: '12px', 
-              marginBottom: '1.5rem'
+              backgroundColor: 'var(--muted)', 
+              border: '1px solid var(--border)', 
+              padding: '1.5rem', 
+              borderRadius: 'var(--radius)', 
+              marginTop: '1.5rem',
+              marginBottom: '1rem'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>✨</span>
-                <strong style={{ fontSize: '0.95rem', color: '#334155' }}>Refine Variables</strong>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>✨</span>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--primary)' }}>Refine Template Variables</strong>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {placeholders.map(p => (
                   <Input 
                     key={p}
-                    id={`var-${p}`}
-                    label={`Value for {{${p}}}`}
+                    label={`Replace {{${p}}} with...`}
                     value={variableValues[p] || ''}
                     onChange={(e) => handleVariableChange(p, e.target.value)}
                     placeholder={`Enter ${p}...`}
@@ -238,23 +209,20 @@ export const Home = () => {
               <Button 
                 type="button" 
                 variant="secondary" 
-                onClick={applyVariables}
-                style={{ marginTop: '0.5rem', width: 'auto', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                onClick={handleApplyVariables}
+                style={{ marginTop: '1rem', width: 'auto', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 disabled={Object.values(variableValues).every(v => !v)}
               >
-                Apply to Message
+                Apply to Template
               </Button>
             </div>
           )}
 
-          <Button type="submit" isLoading={isSending} disabled={!recipient || !message}>
-            {isSending ? 'Sending...' : 'Send with Tracking'}
-          </Button>
-          {sendResult && (
-            <p style={{ marginTop: '1rem', color: sendResult.success ? 'green' : 'red', fontSize: '0.9rem' }}>
-              {sendResult.text}
-            </p>
-          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '2rem' }}>
+            <Button type="submit" isLoading={isSending} disabled={isSending}>
+              Send Outreach
+            </Button>
+          </div>
         </form>
       </Card>
     </div>
