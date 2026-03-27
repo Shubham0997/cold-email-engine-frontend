@@ -1,18 +1,43 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../components/Card';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Textarea } from '../components/Textarea';
-// import { api } from '../services/api'; // TODO: Implement backend endpoints
+import { api } from '../services/api';
 
 export const CreateCampaign = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [recipients, setRecipients] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!id);
+
+  useEffect(() => {
+    if (id) {
+      const fetchCampaign = async () => {
+        try {
+          const data = await api.getCampaignDetails(id);
+          const campaign = data.campaign;
+          setName(campaign.name);
+          setSubject(campaign.subject);
+          setBody(campaign.body);
+          // Convert recipients list back to newline-separated string
+          setRecipients(data.recipients.map((r: any) => r.email).join('\n'));
+        } catch (err) {
+          console.error('Failed to fetch campaign for editing', err);
+          alert('Failed to load campaign data');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchCampaign();
+    }
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,13 +49,14 @@ export const CreateCampaign = () => {
       .filter(line => line.length > 0);
 
     try {
-      // For now, we'll just log this as the backend isn't ready
-      // await api.createCampaign(name, subject, body, recipientList);
-      console.log('Creating campaign:', { name, subject, body, recipientList });
-      alert('Campaign created! (Backend integration pending)');
+      if (id) {
+        await api.updateCampaign(id, name, subject, body, recipientList);
+      } else {
+        await api.createCampaign(name, subject, body, recipientList);
+      }
       navigate('/campaigns');
     } catch (err) {
-      alert('Failed to create campaign');
+      alert(`Failed to ${id ? 'update' : 'create'} campaign`);
     } finally {
       setIsSubmitting(false);
     }
@@ -42,9 +68,13 @@ export const CreateCampaign = () => {
     padding: '0 1rem'
   };
 
+  if (isLoading) {
+    return <div style={containerStyle}><Card title="Editing Campaign">Loading campaign data...</Card></div>;
+  }
+
   return (
     <div style={containerStyle}>
-      <Card title="Start New Campaign">
+      <Card title={id ? "Edit Campaign" : "Start New Campaign"}>
         <form onSubmit={handleSubmit}>
           <Input 
             id="campaign-name"
@@ -83,7 +113,7 @@ export const CreateCampaign = () => {
           
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
             <Button type="submit" isLoading={isSubmitting} variant="primary">
-              Create & Start Campaign
+              {id ? "Update Campaign" : "Create & Start Campaign"}
             </Button>
             <Button type="button" onClick={() => navigate('/campaigns')} variant="secondary">
               Cancel

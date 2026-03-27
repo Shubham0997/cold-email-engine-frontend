@@ -37,5 +37,54 @@ export const api = {
     const response = await fetch(`${API_BASE}/email/stats`);
     if (!response.ok) throw new Error('Failed to fetch stats');
     return response.json();
+  },
+
+  // Campaign APIs
+  createCampaign: async (name: string, subject: string, body: string, recipients: string[]) => {
+    const response = await fetch(`${API_BASE}/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, subject, body, recipients })
+    });
+    if (!response.ok) throw new Error('Failed to create campaign');
+    return response.json();
+  },
+
+  getCampaigns: async () => {
+    const response = await fetch(`${API_BASE}/campaigns`);
+    if (!response.ok) throw new Error('Failed to fetch campaigns');
+    return response.json();
+  },
+
+  getCampaignDetails: async (id: string) => {
+    const response = await fetch(`${API_BASE}/campaigns/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch campaign details');
+    return response.json();
+  },
+
+  startCampaign: async (id: string) => {
+    const response = await fetch(`${API_BASE}/campaigns/${id}/start`, {
+      method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to start campaign');
+    return response.json();
+  },
+
+  updateCampaign: async (id: string, name: string, subject: string, body: string, recipients: string[]) => {
+    const response = await fetch(`${API_BASE}/campaigns/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, subject, body, recipients })
+    });
+    if (!response.ok) throw new Error('Failed to update campaign');
+    return response.json();
+  },
+
+  resetCampaign: async (id: string) => {
+    const response = await fetch(`${API_BASE}/campaigns/${id}/reset`, {
+      method: 'POST'
+    });
+    if (!response.ok) throw new Error('Failed to reset campaign');
+    return response.json();
   }
 };
