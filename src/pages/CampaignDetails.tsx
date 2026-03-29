@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { useAuth } from '../context/AuthContext';
 import { useLoading } from '../context/LoadingContext';
 
 interface Recipient {
@@ -39,9 +40,11 @@ export const CampaignDetails = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
 
+  const { user } = useAuth();
+
   useEffect(() => {
     const fetchDetails = async () => {
-      if (!id) return;
+      if (!id || !user) return;
       try {
         const result = await api.getCampaignDetails(id);
         setData(result);
@@ -56,7 +59,7 @@ export const CampaignDetails = () => {
     // Auto-refresh every 2 minutes
     const interval = setInterval(fetchDetails, 120000);
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, user]);
 
   const handleManualRefresh = async () => {
     if (!id) return;

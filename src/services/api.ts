@@ -1,5 +1,32 @@
+import { auth } from './firebase';
+
 // Use environment variable for API base URL
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+/**
+ * Get authorization headers with Firebase ID token.
+ * Returns headers object with Content-Type and Authorization bearer token.
+ */
+const getAuthHeaders = async (includeContentType = true): Promise<Record<string, string>> => {
+  const headers: Record<string, string> = {};
+  
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  // Ensure Firebase Auth is fully initialized before checking currentUser
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  
+  if (user) {
+    const token = await user.getIdToken();
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn("API request attempted without an authenticated user.");
+  }
+
+  return headers;
+};
 
 export interface EmailRecipient {
   id: string;
@@ -28,11 +55,41 @@ export interface Campaign {
   created_at: string;
 }
 
+export interface SmtpConfig {
+  has_config: boolean;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_user?: string;
+  smtp_pass?: string;
+}
+
 export const api = {
+  // Smtp Settings
+  getSmtpConfig: async (): Promise<SmtpConfig> => {
+    const response = await fetch(`${API_BASE}/settings/smtp`, {
+      headers: await getAuthHeaders(false),
+    });
+    if (!response.ok) throw new Error('Failed to fetch SMTP configuration');
+    return response.json();
+  },
+
+  saveSmtpConfig: async (config: Partial<SmtpConfig>): Promise<{has_config: boolean, message: string}> => {
+    const response = await fetch(`${API_BASE}/settings/smtp/verify`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify(config)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to verify and save SMTP configuration');
+    }
+    return data;
+  },
+
   sendSingleEmail: async (recipient: string, message: string, subject?: string): Promise<{ email_id: string }> => {
     const response = await fetch(`${API_BASE}/email/send-single`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ email: recipient, message, subject })
     });
     
@@ -45,7 +102,9 @@ export const api = {
   },
   
   getStats: async (): Promise<EmailStats> => {
-    const response = await fetch(`${API_BASE}/email/stats`);
+    const response = await fetch(`${API_BASE}/email/stats`, {
+      headers: await getAuthHeaders(false),
+    });
     if (!response.ok) throw new Error('Failed to fetch stats');
     return response.json();
   },
@@ -54,7 +113,7 @@ export const api = {
   createCampaign: async (name: string, subject: string, body: string, recipients: string[]) => {
     const response = await fetch(`${API_BASE}/campaigns`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ name, subject, body, recipients })
     });
     if (!response.ok) {
@@ -65,20 +124,25 @@ export const api = {
   },
 
   getCampaigns: async () => {
-    const response = await fetch(`${API_BASE}/campaigns`);
+    const response = await fetch(`${API_BASE}/campaigns`, {
+      headers: await getAuthHeaders(false),
+    });
     if (!response.ok) throw new Error('Failed to fetch campaigns');
     return response.json();
   },
 
   getCampaignDetails: async (id: string) => {
-    const response = await fetch(`${API_BASE}/campaigns/${id}`);
+    const response = await fetch(`${API_BASE}/campaigns/${id}`, {
+      headers: await getAuthHeaders(false),
+    });
     if (!response.ok) throw new Error('Failed to fetch campaign details');
     return response.json();
   },
 
   startCampaign: async (id: string) => {
     const response = await fetch(`${API_BASE}/campaigns/${id}/start`, {
-      method: 'POST'
+      method: 'POST',
+      headers: await getAuthHeaders(false),
     });
     if (!response.ok) throw new Error('Failed to start campaign');
     return response.json();
@@ -87,7 +151,7 @@ export const api = {
   updateCampaign: async (id: string, name: string, subject: string, body: string, recipients: string[]) => {
     const response = await fetch(`${API_BASE}/campaigns/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ name, subject, body, recipients })
     });
     if (!response.ok) {
@@ -99,7 +163,8 @@ export const api = {
 
   resetCampaign: async (id: string) => {
     const response = await fetch(`${API_BASE}/campaigns/${id}/reset`, {
-      method: 'POST'
+      method: 'POST',
+      headers: await getAuthHeaders(false),
     });
     if (!response.ok) throw new Error('Failed to reset campaign');
     return response.json();
@@ -107,7 +172,8 @@ export const api = {
 
   deleteCampaign: async (id: string) => {
     const response = await fetch(`${API_BASE}/campaigns/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: await getAuthHeaders(false),
     });
     if (!response.ok) throw new Error('Failed to delete campaign');
     return response.json();
@@ -116,7 +182,7 @@ export const api = {
   research: async (prompt: string, is_campaign: boolean = false): Promise<{subject: string, body: string}> => {
     const response = await fetch(`${API_BASE}/api/ai/research`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ prompt, is_campaign })
     });
     if (!response.ok) {
@@ -129,7 +195,7 @@ export const api = {
   generateLeads: async (prompt: string): Promise<{leads: string[]}> => {
     const response = await fetch(`${API_BASE}/api/ai/leads`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ prompt })
     });
     if (!response.ok) {

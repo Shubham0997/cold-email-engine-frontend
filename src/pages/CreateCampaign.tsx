@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Card } from '../components/Card';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
@@ -28,6 +28,13 @@ export const CreateCampaign = () => {
   const [isLoading, setIsLoading] = useState(!!id);
   const [variableValues, setVariableValues] = useState<{[key: string]: string}>({});
   const [showPreview, setShowPreview] = useState(true);
+  const [hasSmtp, setHasSmtp] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api.getSmtpConfig().then(res => {
+      setHasSmtp(res.has_config);
+    }).catch(() => setHasSmtp(false));
+  }, []);
 
   const placeholders = Array.from(new Set([
     ...extractPlaceholders(subject),
@@ -112,6 +119,12 @@ export const CreateCampaign = () => {
       if (!confirmed) return;
     }
 
+    if (hasSmtp === false) {
+      showToast('You must configure your SMTP settings before creating a campaign.', 'error');
+      navigate('/settings');
+      return;
+    }
+
     setIsSubmitting(true);
     
     const recipientList = recipients.split('\n')
@@ -163,6 +176,65 @@ export const CreateCampaign = () => {
   return (
     <div className="container-narrow">
       <Card title={id ? "Edit Campaign" : "Start New Campaign"}>
+        <div style={{ position: 'relative' }}>
+          {hasSmtp !== true && (
+            <div style={{
+              position: 'absolute',
+              inset: '-1rem',
+              backgroundColor: 'rgba(255,255,255,0.7)',
+              backdropFilter: 'blur(2px)',
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius)'
+            }}>
+              <div style={{
+                backgroundColor: '#fff',
+                padding: '2rem',
+                borderRadius: '0.75rem',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1rem',
+                textAlign: 'center',
+                maxWidth: '350px'
+              }}>
+                {hasSmtp === null ? (
+                  <>
+                    <div style={{ 
+                      width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' 
+                    }} />
+                    <span style={{ fontWeight: 600, color: 'var(--primary)', fontSize: '1rem' }}>Verifying Profile...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <div>
+                      <h3 style={{ fontWeight: 700, color: 'var(--primary)', margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>SMTP Configuration Required</h3>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>You must connect to an email provider before you can write or send emails.</p>
+                    </div>
+                    <Link to="/settings" style={{
+                      marginTop: '0.5rem',
+                      padding: '0.625rem 1.25rem',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      textDecoration: 'none',
+                      borderRadius: '0.5rem',
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      transition: 'background-color 0.2s'
+                    }}>
+                      Setup Now
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        <fieldset disabled={hasSmtp !== true} style={{ border: 'none', padding: 0, margin: 0 }}>
         <form onSubmit={handleSubmit}>
           {!id && (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
@@ -181,9 +253,10 @@ export const CreateCampaign = () => {
                     id="include-leads" 
                     checked={includeLeads} 
                     onChange={(e) => setIncludeLeads(e.target.checked)}
-                    style={{ cursor: 'pointer', width: '1rem', height: '1rem', accentColor: 'var(--accent)' }}
+                    disabled={hasSmtp === false}
+                    style={{ cursor: hasSmtp === false ? 'not-allowed' : 'pointer', width: '1rem', height: '1rem', accentColor: 'var(--accent)' }}
                   />
-                  <label htmlFor="include-leads" style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', cursor: 'pointer', fontWeight: 500 }}>
+                  <label htmlFor="include-leads" style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', cursor: hasSmtp === false ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
                     Also find potential recipient emails
                   </label>
                 </div>
@@ -192,7 +265,7 @@ export const CreateCampaign = () => {
                 <Button 
                   type="button" 
                   onClick={handleAIResearch} 
-                  disabled={!prompt || isResearching}
+                  disabled={!prompt || isResearching || hasSmtp === false}
                   variant="secondary"
                   style={{ padding: '0.6rem 1.2rem'}}
                   isLoading={isResearching}
@@ -222,46 +295,50 @@ export const CreateCampaign = () => {
             required 
           />
           
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)' }}>Email Body Template</label>
-              <div style={{ display: 'flex', backgroundColor: 'var(--secondary)', padding: '0.25rem', borderRadius: '0.5rem' }}>
-                <button 
-                  type="button"
-                  onClick={() => setShowPreview(false)}
-                  style={{ 
-                    padding: '0.375rem 0.75rem', 
-                    fontSize: '0.75rem', 
-                    borderRadius: '0.375rem', 
-                    border: 'none',
-                    backgroundColor: !showPreview ? '#fff' : 'transparent',
-                    color: !showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    boxShadow: !showPreview ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
-                  }}
-                >
-                  Edit HTML
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setShowPreview(true)}
-                  style={{ 
-                    padding: '0.375rem 0.75rem', 
-                    fontSize: '0.75rem', 
-                    borderRadius: '0.375rem', 
-                    border: 'none',
-                    backgroundColor: showPreview ? '#fff' : 'transparent',
-                    color: showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    boxShadow: showPreview ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
-                  }}
-                >
-                  Preview
-                </button>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--slate-700)' }}>Email Body Template</label>
+                <div style={{ display: 'flex', backgroundColor: 'var(--secondary)', padding: '0.25rem', borderRadius: '0.5rem' }}>
+                  <button 
+                    type="button"
+                    onClick={() => setShowPreview(false)}
+                    disabled={hasSmtp === false}
+                    style={{ 
+                      padding: '0.375rem 0.75rem', 
+                      fontSize: '0.75rem', 
+                      borderRadius: '0.375rem', 
+                      border: 'none',
+                      backgroundColor: !showPreview ? '#fff' : 'transparent',
+                      color: !showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
+                      fontWeight: 600,
+                      cursor: hasSmtp === false ? 'not-allowed' : 'pointer',
+                      opacity: hasSmtp === false ? 0.6 : 1,
+                      boxShadow: !showPreview && hasSmtp !== false ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    }}
+                  >
+                    Edit HTML
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    disabled={hasSmtp === false}
+                    style={{ 
+                      padding: '0.375rem 0.75rem', 
+                      fontSize: '0.75rem', 
+                      borderRadius: '0.375rem', 
+                      border: 'none',
+                      backgroundColor: showPreview ? '#fff' : 'transparent',
+                      color: showPreview ? 'var(--primary)' : 'var(--muted-foreground)',
+                      fontWeight: 600,
+                      cursor: hasSmtp === false ? 'not-allowed' : 'pointer',
+                      opacity: hasSmtp === false ? 0.6 : 1,
+                      boxShadow: showPreview && hasSmtp !== false ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                    }}
+                  >
+                    Preview
+                  </button>
+                </div>
               </div>
-            </div>
             {!showPreview ? (
               <Textarea 
                 id="campaign-body"
@@ -288,47 +365,48 @@ export const CreateCampaign = () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Recipients (One email per line)</label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type="file" 
-                id="csv-upload" 
-                accept=".csv,.txt" 
-                onChange={handleCsvUpload} 
-                style={{ 
-                  position: 'absolute', 
-                  width: '1px', 
-                  height: '1px', 
-                  padding: '0', 
-                  overflow: 'hidden', 
-                  clip: 'rect(0,0,0,0)', 
-                  whiteSpace: 'nowrap', 
-                  border: '0' 
-                }} 
-              />
-              <label 
-                htmlFor="csv-upload" 
-                style={{ 
-                  fontSize: '0.8rem', 
-                  color: '#0066ff', 
-                  cursor: 'pointer', 
-                  fontWeight: 600,
-                  textDecoration: 'underline'
-                }}
-              >
-                Upload CSV
-              </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#444' }}>Recipients (One email per line)</label>
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type="file" 
+                  id="csv-upload" 
+                  accept=".csv,.txt" 
+                  onChange={handleCsvUpload} 
+                  disabled={hasSmtp === false}
+                  style={{ 
+                    position: 'absolute', 
+                    width: '1px', 
+                    height: '1px', 
+                    padding: '0', 
+                    overflow: 'hidden', 
+                    clip: 'rect(0,0,0,0)', 
+                    whiteSpace: 'nowrap', 
+                    border: '0' 
+                  }} 
+                />
+                <label 
+                  htmlFor="csv-upload" 
+                  style={{ 
+                    fontSize: '0.8rem', 
+                    color: hasSmtp === false ? '#9ca3af' : '#0066ff', 
+                    cursor: hasSmtp === false ? 'not-allowed' : 'pointer', 
+                    fontWeight: 600,
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Upload CSV
+                </label>
+              </div>
             </div>
-          </div>
-          <Textarea 
-            id="campaign-recipients"
-            label="" 
-            value={recipients} 
-            onChange={(e) => setRecipients(e.target.value)} 
-            placeholder="john@example.com&#10;jane@company.com" 
-            required 
-          />
+            <Textarea 
+              id="campaign-recipients"
+              label="" 
+              value={recipients} 
+              onChange={(e) => setRecipients(e.target.value)} 
+              placeholder="john@example.com&#10;jane@company.com" 
+              required 
+            />
 
           {containsPlaceholders && (
             <div style={{ 
@@ -370,15 +448,17 @@ export const CreateCampaign = () => {
             </div>
           )}
           
-          <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
-            <Button type="submit" isLoading={isSubmitting} variant="primary">
-              {id ? "Update Campaign" : "Create & Start Campaign"}
-            </Button>
-            <Button type="button" onClick={() => navigate('/campaigns')} variant="secondary">
-              Cancel
-            </Button>
-          </div>
-        </form>
+            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
+              <Button type="submit" isLoading={isSubmitting} disabled={hasSmtp === false} variant="primary">
+                {id ? "Update Campaign" : "Create & Start Campaign"}
+              </Button>
+              <Button type="button" onClick={() => navigate('/campaigns')} disabled={hasSmtp === false} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </fieldset>
+        </div>
       </Card>
     </div>
   );

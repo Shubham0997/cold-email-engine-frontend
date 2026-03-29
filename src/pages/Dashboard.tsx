@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, EmailStats } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/Card';
 
 export const Dashboard = () => {
@@ -13,15 +14,22 @@ export const Dashboard = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [campaignFilter, setCampaignFilter] = useState('all');
+  const { user } = useAuth();
+  
   useEffect(() => {
+    // Only fetch data if we truly have a user (prevents missing token on fast navigations)
+    if (!user) return;
+
     const fetchData = () => {
       api.getStats()
         .then(data => {
+          setError(''); // Clear any previous errors!
           setStats(data);
           setLoading(false);
           setIsRefreshing(false);
         })
-        .catch(() => {
+        .catch(err => {
+          console.error("Dashboard fetch error:", err);
           setError('Failed to load real-time analytics.');
           setLoading(false);
           setIsRefreshing(false);
@@ -33,7 +41,7 @@ export const Dashboard = () => {
     // Auto-refresh every 2 minutes
     const interval = setInterval(fetchData, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   const handleManualRefresh = () => {
     setIsRefreshing(true);
