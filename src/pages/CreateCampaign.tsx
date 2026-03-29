@@ -21,7 +21,8 @@ export const CreateCampaign = () => {
   const [body, setBody] = useState('');
   const [recipients, setRecipients] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [includeLeads, setIncludeLeads] = useState(true);
+  const [leadPrompt, setLeadPrompt] = useState('');
+  const [includeLeads, setIncludeLeads] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResearching, setIsResearching] = useState(false);
   const [researchStatus, setResearchStatus] = useState<'idle' | 'templates' | 'leads'>('idle');
@@ -62,17 +63,20 @@ export const CreateCampaign = () => {
   };
 
   const handleAIResearch = async () => {
-    if (!prompt) return;
+    if (!prompt && !(includeLeads && leadPrompt)) return;
     setIsResearching(true);
-    setResearchStatus('templates');
+    
     try {
-      const res = await api.research(prompt, true);
-      setSubject(res.subject);
-      setBody(res.body);
+      if (prompt) {
+        setResearchStatus('templates');
+        const res = await api.research(prompt, true);
+        setSubject(res.subject);
+        setBody(res.body);
+      }
 
-      if (includeLeads) {
+      if (includeLeads && leadPrompt) {
         setResearchStatus('leads');
-        const leadRes = await api.generateLeads(prompt);
+        const leadRes = await api.generateLeads(leadPrompt);
         if (leadRes.leads && leadRes.leads.length > 0) {
           const newRecipients = leadRes.leads.join('\n');
           setRecipients(prev => prev ? `${prev}\n${newRecipients}` : newRecipients);
@@ -237,42 +241,57 @@ export const CreateCampaign = () => {
         <fieldset disabled={hasSmtp !== true} style={{ border: 'none', padding: 0, margin: 0 }}>
         <form onSubmit={handleSubmit}>
           {!id && (
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-              <div style={{ flex: 1 }}>
-                <Textarea 
-                  id="ai-prompt"
-                  label="AI Research & Lead Gen Prompt (Optional)" 
-                  value={prompt} 
-                  onChange={(e) => setPrompt(e.target.value)} 
-                  placeholder="e.g. Find 10 coffee roasters in New York and write a partnership cold email" 
-                  rows={3}
-                />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <input 
-                    type="checkbox" 
-                    id="include-leads" 
-                    checked={includeLeads} 
-                    onChange={(e) => setIncludeLeads(e.target.checked)}
-                    disabled={hasSmtp === false}
-                    style={{ cursor: hasSmtp === false ? 'not-allowed' : 'pointer', width: '1rem', height: '1rem', accentColor: 'var(--accent)' }}
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <Textarea 
+                    id="ai-prompt"
+                    label="Email Draft AI Prompt (Optional)" 
+                    value={prompt} 
+                    onChange={(e) => setPrompt(e.target.value)} 
+                    placeholder="e.g. Write a partnership cold email tailored to local coffee roasters." 
+                    rows={2}
                   />
-                  <label htmlFor="include-leads" style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', cursor: hasSmtp === false ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
-                    Also find potential recipient emails
-                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+                    <input 
+                      type="checkbox" 
+                      id="include-leads" 
+                      checked={includeLeads} 
+                      onChange={(e) => setIncludeLeads(e.target.checked)}
+                      disabled={hasSmtp === false}
+                      style={{ cursor: hasSmtp === false ? 'not-allowed' : 'pointer', width: '1.1rem', height: '1.1rem', accentColor: 'var(--accent)' }}
+                    />
+                    <label htmlFor="include-leads" style={{ fontSize: '0.875rem', color: 'var(--primary)', cursor: hasSmtp === false ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+                      Fetch potential leads automatically as well
+                    </label>
+                  </div>
                 </div>
+
+                {includeLeads && (
+                  <div style={{ padding: '1rem', backgroundColor: 'var(--muted)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                    <Textarea 
+                      id="lead-prompt"
+                      label="Target Audience / Recipient Search Parameter"
+                      value={leadPrompt}
+                      onChange={(e) => setLeadPrompt(e.target.value)}
+                      placeholder="e.g. Find email addresses for 10 independently owned coffee roasters in New York City"
+                      rows={2}
+                    />
+                  </div>
+                )}
               </div>
               <div style={{ marginTop: '1.6rem' }}>
                 <Button 
                   type="button" 
                   onClick={handleAIResearch} 
-                  disabled={!prompt || isResearching || hasSmtp === false}
+                  disabled={(!prompt && (!includeLeads || !leadPrompt)) || isResearching || hasSmtp === false}
                   variant="secondary"
-                  style={{ padding: '0.6rem 1.2rem'}}
+                  style={{ padding: '0.6rem 1.2rem', whiteSpace: 'nowrap' }}
                   isLoading={isResearching}
                 >
                   {isResearching 
                     ? (researchStatus === 'templates' ? 'Drafting...' : 'Fetching Leads...') 
-                    : 'AI Research'}
+                    : 'Run AI Automation'}
                 </Button>
               </div>
             </div>
